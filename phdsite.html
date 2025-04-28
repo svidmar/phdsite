@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -439,6 +437,20 @@ header img {
     }
 }
 
+.new-badge {
+    background-color: #0E8563;  /* Green background */
+    color: #FFFFFF;  /* White text */
+    font-size: 12px;
+    font-weight: bold;
+    padding: 6px 12px;  /* Slightly larger padding */
+    border-radius: 20px;  /* More rounded */
+    margin-right: 10px;
+    display: inline-block;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);  /* Soft shadow */
+    text-transform: uppercase;  /* Optional: Makes text all caps */
+}
+
+
 
     </style>
 </head>
@@ -456,10 +468,37 @@ header img {
         margin: 20px auto; /* Center the chart and add margin */
     }
 </style>
-<div id="site-description" style="text-align: center; margin-top: 20px;">
-        <p>Explore our collection of Open Access PhD Theses from Aalborg University. Browse by year, series, or search by title and author</p>
-        <p>Contact us for any inquiries: <a href="mailto:aauopen@aau.dk" style="color: #f9f9f9;">aauopen@aau.dk</a></p>
-    </div>
+<div id="site-description" style="
+    text-align: center;
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 15px;
+    color: #DDDDDD;
+    font-size: 1.2rem;
+    line-height: 1.6;
+">
+    <p style="font-weight: 400;">
+        <strong style="font-size: 1.3rem; color: #FFFFFF;">Explore the collection of Open Access PhD Theses</strong> 
+        from Aalborg University. <br>Browse by 
+        <span style="color: #FFFFFF; font-weight: bold;">year</span>, 
+        <span style="color: #FFFFFF; font-weight: bold;">series</span>, or 
+        search by <span style="color: #FFFFFF; font-weight: bold;">title and author</span>.
+    </p>
+    <p style="
+        font-size: 1rem;
+        font-weight: 300;
+        color: #BBBBBB;
+        margin-top: 15px;
+    ">
+        Contact us for any inquiries: 
+        <a href="mailto:aauopen@aau.dk" 
+            style="color: #008BB2; font-weight: bold; text-decoration: none;">
+            aauopen@aau.dk
+        </a>
+    </p>
+</div>
+
+
 </header>
 
     <!-- Sidebar for filters -->
@@ -480,7 +519,7 @@ header img {
         <div id="year-slider" class="range-slider"></div>
         <div class="slider-labels">
             <span id="min-year">1984</span>
-            <span id="max-year">2024</span>
+            <span id="max-year">2025</span>
         </div>
     </div>
     <div class="series-container">
@@ -506,6 +545,15 @@ header img {
 
 
     <section class="content">
+        <div id="sorting-indicator" style="
+    text-align: center;
+    font-size: 1rem;
+    color: #BBBBBB;
+    margin-bottom: 15px;
+">
+    Sorted by <strong>Most Recently Added</strong>
+</div>
+
         <div class="thesis-list" id="thesis-list">
             <!-- Thesis cards will be injected here by JavaScript -->
         </div>
@@ -524,7 +572,7 @@ header img {
         let thesisData = [];
         let filteredData = [];
         let minYear, maxYear;
-        let yearRange = [1984, 2024]; // Default year range (adjust based on your dataset)
+        let yearRange = [1984, 2025]; // Default year range (adjust based on your dataset)
         let selectedSeries = ''; // Default to all series
         let barChartInstance = null;  // To store the bar chart instance
 
@@ -684,7 +732,7 @@ function loadTheses() {
 
             // Convert the sheet data into JSON format
             thesisData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-            
+
             // Assume the first row is the header and skip it
             thesisData = thesisData.slice(1).map(row => {
                 return {
@@ -692,20 +740,33 @@ function loadTheses() {
                     author: row[1] || 'Unknown Author',
                     year: row[2] || 'Unknown Year',
                     series: row[3] || 'Other',
-                    url: row[4] || '#'
+                    url: row[4] || '#',
+                    created: row[5] ? new Date(row[5]) : null  // Extract 'Created Date'
                 };
             });
 
-            // Sort the thesisData by year in descending order
-thesisData = thesisData.sort((a, b) => {
-    const yearDiff = (parseInt(b.year, 10) || 0) - (parseInt(a.year, 10) || 0);
-    if (yearDiff !== 0) {
-        return yearDiff; // Sort by year if the years are different
-    }
-    return a.title.localeCompare(b.title); // If years are the same, sort by title alphabetically
-});
+            // Sort first by Created Date (newest first), then by Year (newest first), then Title
+            thesisData = thesisData.sort((a, b) => {
+                if (b.created && a.created) {
+                    return b.created - a.created; // Sort by Created Date
+                } else if (b.created) {
+                    return 1; // Push undefined Created Dates down
+                } else if (a.created) {
+                    return -1;
+                }
+                const yearDiff = (parseInt(b.year, 10) || 0) - (parseInt(a.year, 10) || 0);
+                if (yearDiff !== 0) {
+                    return yearDiff;
+                }
+                return a.title.localeCompare(b.title);
+            });
 
-            // Handle the series mapping (same logic)
+            // Mark the 20 most recent theses as "New"
+            thesisData.forEach((thesis, index) => {
+                thesis.isNew = index < 25; // First 20 get the "New" badge
+            });
+
+            // Handle the series mapping
             thesisData = thesisData.map(thesis => {
                 thesis.series = seriesMapping[thesis.series ? thesis.series.trim() : ""] || "Other";
                 return thesis;
@@ -723,10 +784,11 @@ thesisData = thesisData.sort((a, b) => {
             // Delay the loading of the bar chart by 2 seconds
             setTimeout(() => {
                 createBarChart(thesisData); // Call the bar chart function after the delay
-            }, 1000);
+            }, 10);
         })
         .catch(error => console.log("Error loading XLSX file:", error));
 }
+
 
 
 function updateCounter(count) {
@@ -744,7 +806,8 @@ function updateCounter(count) {
     }
 
     // Calculate an increment value to count faster for large numbers
-    let incrementValue = Math.max(1, Math.ceil(count / 100));  // Adjust this based on the total count
+    let incrementValue = Math.max(1, Math.ceil(count / 10));  // Adjust this based on the total count
+
 
     window.counterInterval = setInterval(() => {
         currentCount += incrementValue;
@@ -812,8 +875,9 @@ function updateCounter(count) {
 
 
         // Display a batch of theses with color-coded cards
-        function displayTheses(batchSize) {
+       function displayTheses(batchSize) {
     const thesisList = document.getElementById("thesis-list");
+
     const start = (currentPage - 1) * batchSize;
     const end = start + batchSize;
     const pageData = filteredData.slice(start, end);
@@ -822,65 +886,53 @@ function updateCounter(count) {
         const thesisCard = document.createElement("div");
 
         // Extract the UUID from the 'url' column in your CSV data
-        const uuid = thesis.url ? thesis.url.split('/').pop() : '#';  // Extract the last part (UUID)
-        const thesisUrl = `https://vbn.aau.dk/en/publications/${uuid}`;  // Construct the correct URL
+        const uuid = thesis.url ? thesis.url.split('/').pop() : '#';  
+        const thesisUrl = `https://vbn.aau.dk/en/publications/${uuid}`;  
 
         // Map series to the correct class
         let seriesClass = '';
         switch (thesis.series) {
-            case 'SSH':
-                seriesClass = 'ssh-card';
-                break;
-            case 'TECH':
-                seriesClass = 'tech-card';
-                break;
-            case 'ENG':
-                seriesClass = 'eng-card';
-                break;
-            case 'HEALTH':
-                seriesClass = 'health-card';
-                break;
-            case 'Other':
-                seriesClass = 'other-card';
-                break;
-            case 'No series':
-                seriesClass = 'no-series-card';
-                break;
-            default:
-                seriesClass = 'other-card'; // Default to "Other" if not specified
-                break;
+            case 'SSH': seriesClass = 'ssh-card'; break;
+            case 'TECH': seriesClass = 'tech-card'; break;
+            case 'ENG': seriesClass = 'eng-card'; break;
+            case 'HEALTH': seriesClass = 'health-card'; break;
+            case 'Other': seriesClass = 'other-card'; break;
+            case 'No series': seriesClass = 'no-series-card'; break;
+            default: seriesClass = 'other-card';
         }
 
-        // Add the series class to the card
+        // Add "New" badge if thesis is marked as new
+        const newBadge = thesis.isNew ? `<span class="new-badge">New</span>` : "";
+
         thesisCard.className = `thesis-card ${seriesClass}`;
         thesisCard.innerHTML = `
-            <div class="thesis-title">${thesis.title || 'No Title Available'}</div>
-            <div class="thesis-info">
-                <span>Author:</span> ${thesis.author || 'Unknown'}
+            <div class="thesis-header">
+                ${newBadge} <span class="thesis-title">${thesis.title || 'No Title Available'}</span>
             </div>
-            <div class="thesis-info">
-                <span>Year:</span> ${thesis.year || 'Unknown'}
-            </div>
-            <div class="thesis-info">
-                <span>Series:</span> ${thesis.series || 'Unknown'}
-            </div>
+            <div class="thesis-info"><span>Author:</span> ${thesis.author || 'Unknown'}</div>
+            <div class="thesis-info"><span>Year:</span> ${thesis.year || 'Unknown'}</div>
+            <div class="thesis-info"><span>Series:</span> ${thesis.series || 'Unknown'}</div>
             <br>
             <a href="${thesisUrl}" target="_blank" class="read-more-btn">Read More</a>
         `;
+
         thesisList.appendChild(thesisCard);
     });
 }
 
 
+
+
         // Setup infinite scroll to load more cards when scrolling
         function setupInfiniteScroll() {
-            window.addEventListener("scroll", () => {
-                if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 200) {
-                    currentPage++;
-                    displayTheses(itemsPerBatch);
-                }
-            });
+    window.addEventListener("scroll", () => {
+        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 200) {
+            currentPage++;
+            displayTheses(itemsPerBatch);
         }
+    });
+}
+
 
         // Reset filters
         function resetFilters() {
